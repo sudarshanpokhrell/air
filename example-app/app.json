@@ -8,9 +8,11 @@
     "scheme": "exampleapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.example.air"
     },
     "android": {
+      "package": "com.example.air",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -19,12 +21,24 @@
       },
       "predictiveBackGestureEnabled": false
     },
+    "runtimeVersion": "1.0.0",
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+    "updates": {
+      "enabled": true,
+      "url": "http://10.0.2.2:8080/api/manifest?app=example-app",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "requestHeaders": { "expo-channel-name": "production" }
+    },
     "plugins": [
       "expo-router",
+      [
+        "expo-build-properties",
+        { "android": { "usesCleartextTraffic": true } }
+      ],
       [
         "expo-splash-screen",
         {
@@ -32,8 +46,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ],
-      "expo-build-properties"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
