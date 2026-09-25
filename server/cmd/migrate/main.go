@@ -6,6 +6,9 @@ import (
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+
 	"github.com/sudarshanpokhrell/air/internal/config"
 )
 
@@ -19,7 +22,6 @@ func main() {
 	cfg := config.MustLoad()
 
 	m, err := migrate.New("file://migrations", cfg.DBUrl)
-
 	if err != nil {
 		log.Fatalf("💥 Failed to initialize migration: %v", err)
 	}

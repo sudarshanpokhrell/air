@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS update_assets;
+DROP TABLE IF EXISTS updates;
+DROP TABLE IF EXISTS app_platforms;
+DROP TABLE IF EXISTS assets;
+DROP TABLE IF EXISTS api_keys;
+DROP TABLE IF EXISTS apps;
+
+DROP TYPE IF EXISTS update_kind;
+DROP TYPE IF EXISTS platform;
