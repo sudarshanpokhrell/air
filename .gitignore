@@ -1,0 +1,33 @@
+Hide.*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+keys/
+*.pem
+!example-app/certs/certificate.pem
+*.p8
+*.p12
+*.jks
+*.keystore
+
+# Node (cli/)
+node_modules/
+cli/dist/
+
+# Go (server/)
+server/bin/
+server/tmp/
+*.test
+*.out
+coverage.*
+
+# Expo export output
+dist/
