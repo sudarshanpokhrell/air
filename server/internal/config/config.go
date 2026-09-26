@@ -12,8 +12,7 @@ type Config struct {
 	Env   string
 	DBUrl string
 
-	AdminToken string // protects /api/v1/admin; admin API is closed when empty
-	PublicURL  string // base URL devices download assets from
+	PublicURL string
 }
 
 func MustLoad() Config {
@@ -40,8 +39,7 @@ func MustLoad() Config {
 		Env:   env,
 		DBUrl: dbUrl,
 
-		AdminToken: os.Getenv("ADMIN_TOKEN"),
-		PublicURL:  os.Getenv("PUBLIC_URL"),
+		PublicURL: os.Getenv("PUBLIC_URL"),
 	}
 	if cfg.PublicURL == "" {
 		cfg.PublicURL = "http://localhost:" + port

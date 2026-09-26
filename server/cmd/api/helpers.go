@@ -32,7 +32,7 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(dst); err != nil {
-		// TODO: friendlier messages like trackforge (syntax, type, unknown field, too large)
+		//TODO: Friendlier messages
 		return err
 	}
 	if err := dec.Decode(&struct{}{}); err != io.EOF {
@@ -47,6 +47,32 @@ func (app *application) contextApp(r *http.Request) *store.App {
 		panic("missing app in request context")
 	}
 	return a
+}
+
+func (app *application) contextUser(r *http.Request) *store.User {
+	u, ok := r.Context().Value(userCtx).(*store.User)
+	if !ok {
+		panic("missing user in request context")
+	}
+	return u
+}
+
+// contextAppRole is the caller's effective role in the app from LoadApp.
+func (app *application) contextAppRole(r *http.Request) string {
+	role, ok := r.Context().Value(appRoleCtx).(string)
+	if !ok {
+		panic("missing app role in request context")
+	}
+	return role
+}
+
+// requestAppID is the app a request acts on: from the API key (CLI) or
+// from {slug} (dashboard). Lets one handler serve both.
+func (app *application) requestAppID(r *http.Request) string {
+	if k, ok := r.Context().Value(apiKeyCtx).(*store.APIKey); ok {
+		return k.AppID
+	}
+	return app.contextApp(r).ID
 }
 
 func (app *application) contextAPIKey(r *http.Request) *store.APIKey {

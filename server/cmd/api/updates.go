@@ -25,9 +25,9 @@ func (app *application) getPublishConfigHandler(w http.ResponseWriter, r *http.R
 	app.notImplementedResponse(w, r)
 }
 
-// GET /api/v1/updates
+// GET /api/v1/updates (CLI) and GET /api/v1/apps/{slug}/updates (dashboard)
 func (app *application) listUpdatesHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: store.Updates.ListUpdates(contextAPIKey.AppID) → envelope{"updates": updates}
+	// TODO: store.Updates.ListUpdates(app.requestAppID(r)) → envelope{"updates": updates}
 	app.notImplementedResponse(w, r)
 }
 
@@ -39,13 +39,13 @@ func (app *application) createUpdateHandler(w http.ResponseWriter, r *http.Reque
 	app.notImplementedResponse(w, r)
 }
 
-// POST /api/v1/updates/rollback
+// POST /api/v1/updates/rollback (CLI) and POST /api/v1/apps/{slug}/updates/rollback (dashboard)
 func (app *application) rollbackHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO: to previous (republish old manifest's assets) or to embedded (directive from CLI)
 	app.notImplementedResponse(w, r)
 }
 
-// PATCH /api/v1/updates/{groupID}
+// PATCH /api/v1/updates/{groupID} (CLI) and PATCH /api/v1/apps/{slug}/updates/{groupID} (dashboard)
 func (app *application) setRolloutHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO: validate UUID + 0-100 → store.Updates.SetRolloutPercent
 	app.notImplementedResponse(w, r)

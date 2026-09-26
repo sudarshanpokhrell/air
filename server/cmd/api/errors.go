@@ -35,6 +35,14 @@ func (app *application) unauthorizedResponse(w http.ResponseWriter, r *http.Requ
 	app.errorResponse(w, r, http.StatusUnauthorized, "invalid or missing credentials")
 }
 
+func (app *application) forbiddenResponse(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusForbidden, "you don't have permission to perform this action")
+}
+
+func (app *application) invalidLoginResponse(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusUnauthorized, "invalid email or password")
+}
+
 func (app *application) notImplementedResponse(w http.ResponseWriter, r *http.Request) {
 	app.errorResponse(w, r, http.StatusNotImplemented, "not implemented yet")
 }

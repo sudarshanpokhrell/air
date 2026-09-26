@@ -1,0 +1,7 @@
+ALTER TABLE api_keys DROP COLUMN IF EXISTS created_by;
+
+DROP TABLE IF EXISTS app_members;
+DROP TYPE IF EXISTS app_role;
+
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;
