@@ -66,5 +66,9 @@ func (app *application) routes() http.Handler {
 	mux.Handle("POST /api/v1/updates/rollback", cli(app.rollbackHandler))
 	mux.Handle("PATCH /api/v1/updates/{groupID}", cli(app.setRolloutHandler))
 
+	// Dashboard (embedded React app). Least specific pattern, so it only
+	// gets requests no API route matched.
+	mux.Handle("GET /", app.dashboardHandler())
+
 	return app.recoverPanic(app.logRequest(mux))
 }

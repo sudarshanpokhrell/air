@@ -1,4 +1,4 @@
-.PHONY: up down run migrate-up migrate-down migration create-admin reset-password
+.PHONY: up down run migrate-up migrate-down migration create-admin reset-password web-install web-dev web-build
 
 up:
 	docker compose up -d --wait
@@ -28,3 +28,15 @@ create-admin:
 # Usage: make reset-password email=you@example.com
 reset-password:
 	cd server && go run ./cmd/admin reset-password --email "$(email)"
+
+# Dashboard (server/web). Requires bun.
+web-install:
+	cd server/web && bun install
+
+# Vite dev server on :5173, proxies /api to the Go API on :8080 (run `make run` too).
+web-dev:
+	cd server/web && bun run dev
+
+# Builds server/web/dist, which the Go binary embeds. Rebuild the API afterwards.
+web-build:
+	cd server/web && bun run build

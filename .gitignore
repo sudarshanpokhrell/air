@@ -31,3 +31,9 @@ coverage.*
 
 # Expo export output
 dist/
+
+# Dashboard build output is ignored, except the placeholder that keeps
+# go:embed compiling on a fresh clone (copied from web/public on every build).
+!server/web/dist/
+server/web/dist/*
+!server/web/dist/.gitkeep
