@@ -32,7 +32,6 @@ export interface Update {
   kind: "update" | "rollback_to_embedded"
   message: string
   git_commit: string
-  rollout_percent: number
   created_at: string
 }
 

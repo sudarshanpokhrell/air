@@ -15,10 +15,6 @@ type CreateUpdatePayload struct {
 	Platforms []PublishPlatformPayload `json:"platforms"`
 }
 
-type SetRolloutPayload struct {
-	RolloutPercent *int `json:"rollout_percent"`
-}
-
 // GET /api/v1/config
 func (app *application) getPublishConfigHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO: envelope{"asset_base_url": ..., "code_signing": {"enabled": ..., "key_id": ...}}
@@ -42,11 +38,5 @@ func (app *application) createUpdateHandler(w http.ResponseWriter, r *http.Reque
 // POST /api/v1/updates/rollback (CLI) and POST /api/v1/apps/{slug}/updates/rollback (dashboard)
 func (app *application) rollbackHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO: to previous (republish old manifest's assets) or to embedded (directive from CLI)
-	app.notImplementedResponse(w, r)
-}
-
-// PATCH /api/v1/updates/{groupID} (CLI) and PATCH /api/v1/apps/{slug}/updates/{groupID} (dashboard)
-func (app *application) setRolloutHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: validate UUID + 0-100 → store.Updates.SetRolloutPercent
 	app.notImplementedResponse(w, r)
 }

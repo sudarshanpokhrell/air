@@ -5,7 +5,7 @@ import {
   Th,
   theadClass,
 } from "@/components/page"
-import { StatusDot, Tag } from "@/components/tags"
+import { Tag } from "@/components/tags"
 import { Skeleton } from "@/components/ui/skeleton"
 import { updatesQuery } from "@/hooks/use-apps"
 import { isApiError } from "@/lib/api"
@@ -48,7 +48,6 @@ function UpdatesPage() {
           <Th>Platform</Th>
           <Th>Channel</Th>
           <Th>Runtime</Th>
-          <Th>Rollout</Th>
           <Th>Published</Th>
         </tr>
       </thead>
@@ -56,7 +55,7 @@ function UpdatesPage() {
         {isPending &&
           Array.from({ length: 3 }).map((_, i) => (
             <tr key={i}>
-              <td className="px-4 py-3" colSpan={6}>
+              <td className="px-4 py-3" colSpan={5}>
                 <Skeleton className="h-5 w-full" />
               </td>
             </tr>
@@ -82,19 +81,6 @@ function UpdatesPage() {
             <td className="px-4 py-3">{u.channel}</td>
             <td className="px-4 py-3 font-mono text-caption">
               {u.runtime_version}
-            </td>
-            <td className="px-4 py-3">
-              <StatusDot
-                tone={
-                  u.rollout_percent === 100
-                    ? "ok"
-                    : u.rollout_percent === 0
-                      ? "off"
-                      : "warn"
-                }
-              >
-                {u.rollout_percent}%
-              </StatusDot>
             </td>
             <td className="px-4 py-3 text-muted-foreground">
               {format(new Date(u.created_at), "MMM d, HH:mm")}

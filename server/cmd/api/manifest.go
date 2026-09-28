@@ -11,7 +11,7 @@ func (app *application) manifestHandler(w http.ResponseWriter, r *http.Request) 
 	//     expo-current-update-id, eas-client-id
 	//  2. slug → app (unknown → 404)
 	//  3. platform registered + enabled? else no update
-	//  4. store.Updates.LatestUpdates → first where rollout.InRollout
+	//  4. store.Updates.LatestUpdates → newest row
 	//  5. none / same id → 204 No Content (no body, so nothing to sign for
 	//     code-signed apps; fallback if clients reject it: CLI-signed
 	//     noUpdateAvailable directive stored on the app)

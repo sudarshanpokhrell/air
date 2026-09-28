@@ -25,7 +25,6 @@ type Update struct {
 	LaunchAsset    *string // bundle hash; nil for KindRollbackToEmbedded
 	Message        string
 	GitCommit      string
-	RolloutPercent int
 	Manifest       []byte     // exact bytes from the CLI, served unchanged
 	Signature      string     // expo-signature header value; "" when unsigned
 	RolledBackAt   *time.Time // set by rollback; such rows are never served
@@ -34,13 +33,12 @@ type Update struct {
 
 // Update is for the new update (for 1 or 2 platform)
 type NewUpdate struct {
-	AppID          string
-	Channel        string
-	Kind           string // "" means KindUpdate
-	Message        string
-	GitCommit      string
-	RolloutPercent int // 0 means 100 (everyone)
-	Platforms      []PlatformBuild
+	AppID     string
+	Channel   string
+	Kind      string // "" means KindUpdate
+	Message   string
+	GitCommit string
+	Platforms []PlatformBuild
 }
 
 // every update has a platfrom related info
@@ -67,24 +65,20 @@ func (s *UpdateStore) CreateUpdate(ctx context.Context, nu NewUpdate) ([]*Update
 	if kind == "" {
 		kind = KindUpdate
 	}
-	rollout := nu.RolloutPercent
-	if rollout == 0 {
-		rollout = 100
-	}
 
 	const insertUpdate = `
 		INSERT INTO updates (
 			id, group_id, app_id, channel, platform, runtime_version, kind,
-			launch_asset, message, git_commit, rollout_percent, manifest, signature
+			launch_asset, message, git_commit, manifest, signature
 		)
 		VALUES (
 			$1, $2, $3, $4, $5::platform, $6, $7::update_kind,
-			NULLIF($8, ''), NULLIF($9, ''), NULLIF($10, ''), $11, $12, NULLIF($13, '')
+			NULLIF($8, ''), NULLIF($9, ''), NULLIF($10, ''), $11, NULLIF($12, '')
 		)
 		RETURNING
 			id, group_id, app_id, channel, platform, runtime_version, kind,
 			launch_asset, COALESCE(message, ''), COALESCE(git_commit, ''),
-			rollout_percent, manifest, COALESCE(signature, ''), rolled_back_at, created_at`
+			manifest, COALESCE(signature, ''), rolled_back_at, created_at`
 
 	const insertAssets = `
 		INSERT INTO update_assets (update_id, asset_hash)
@@ -102,11 +96,11 @@ func (s *UpdateStore) CreateUpdate(ctx context.Context, nu NewUpdate) ([]*Update
 			var u Update
 			err := tx.QueryRowContext(ctx, insertUpdate,
 				p.ID, groupID, nu.AppID, nu.Channel, p.Platform, p.RuntimeVersion, kind,
-				p.LaunchAsset, nu.Message, nu.GitCommit, rollout, p.Manifest, p.Signature,
+				p.LaunchAsset, nu.Message, nu.GitCommit, p.Manifest, p.Signature,
 			).Scan(
 				&u.ID, &u.GroupID, &u.AppID, &u.Channel, &u.Platform, &u.RuntimeVersion, &u.Kind,
 				&u.LaunchAsset, &u.Message, &u.GitCommit,
-				&u.RolloutPercent, &u.Manifest, &u.Signature, &u.RolledBackAt, &u.CreatedAt,
+				&u.Manifest, &u.Signature, &u.RolledBackAt, &u.CreatedAt,
 			)
 			if isUniqueViolation(err) {
 				return ErrConflict
@@ -131,14 +125,13 @@ func (s *UpdateStore) CreateUpdate(ctx context.Context, nu NewUpdate) ([]*Update
 }
 
 // LatestUpdates returns the newest updates a device could receive, newest first.
-// More than one is returned so rollouts can fall back to an older update.
 // Rolled-back updates are skipped.
 func (s *UpdateStore) LatestUpdates(ctx context.Context, appID, channel, platform, runtimeVersion string, limit int) ([]*Update, error) {
 	const q = `
 		SELECT
 			id, group_id, app_id, channel, platform, runtime_version, kind,
 			launch_asset, COALESCE(message, ''), COALESCE(git_commit, ''),
-			rollout_percent, manifest, COALESCE(signature, ''), rolled_back_at, created_at
+			manifest, COALESCE(signature, ''), rolled_back_at, created_at
 		FROM updates
 		WHERE app_id = $1 AND channel = $2 AND platform = $3::platform AND runtime_version = $4
 		  AND rolled_back_at IS NULL
@@ -157,7 +150,7 @@ func (s *UpdateStore) LatestUpdates(ctx context.Context, appID, channel, platfor
 		err := rows.Scan(
 			&u.ID, &u.GroupID, &u.AppID, &u.Channel, &u.Platform, &u.RuntimeVersion, &u.Kind,
 			&u.LaunchAsset, &u.Message, &u.GitCommit,
-			&u.RolloutPercent, &u.Manifest, &u.Signature, &u.RolledBackAt, &u.CreatedAt,
+			&u.Manifest, &u.Signature, &u.RolledBackAt, &u.CreatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -173,7 +166,7 @@ func (s *UpdateStore) ListUpdates(ctx context.Context, appID string, limit int) 
 		SELECT
 			id, group_id, app_id, channel, platform, runtime_version, kind,
 			launch_asset, COALESCE(message, ''), COALESCE(git_commit, ''),
-			rollout_percent, manifest, COALESCE(signature, ''), rolled_back_at, created_at
+			manifest, COALESCE(signature, ''), rolled_back_at, created_at
 		FROM updates
 		WHERE app_id = $1
 		ORDER BY created_at DESC, platform
@@ -191,7 +184,7 @@ func (s *UpdateStore) ListUpdates(ctx context.Context, appID string, limit int) 
 		err := rows.Scan(
 			&u.ID, &u.GroupID, &u.AppID, &u.Channel, &u.Platform, &u.RuntimeVersion, &u.Kind,
 			&u.LaunchAsset, &u.Message, &u.GitCommit,
-			&u.RolloutPercent, &u.Manifest, &u.Signature, &u.RolledBackAt, &u.CreatedAt,
+			&u.Manifest, &u.Signature, &u.RolledBackAt, &u.CreatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -225,26 +218,4 @@ func (s *UpdateStore) GetUpdateAssets(ctx context.Context, updateID string) ([]*
 		assets = append(assets, &a)
 	}
 	return assets, rows.Err()
-}
-
-// SetRolloutPercent changes the rollout of every platform in a publish.
-// Returns ErrNotFound if the group doesn't belong to the app.
-func (s *UpdateStore) SetRolloutPercent(ctx context.Context, appID, groupID string, percent int) error {
-	const q = `
-		UPDATE updates
-		SET rollout_percent = $3
-		WHERE app_id = $1 AND group_id = $2`
-
-	res, err := s.db.ExecContext(ctx, q, appID, groupID, percent)
-	if err != nil {
-		return err
-	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
 }

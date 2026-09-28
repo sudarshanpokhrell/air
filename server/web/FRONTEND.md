@@ -20,8 +20,7 @@ Terms you'll see everywhere:
 | **Runtime version** | Compatibility label of the native binary (e.g. `1.4.0`). A device only gets updates with the **exact** same runtime version. |
 | **Update** | One publish for one platform. A single `cli publish` usually creates **two** updates (iOS + Android) that share a `group_id`. |
 | **Group** | All updates from one publish (same `group_id`). **The UI should treat a group as one row.** A group can contain **only one platform** (`air publish --platform ios`). |
-| **Per-platform release** | iOS and Android are independent. Each platform is always on its **own** latest update, and its rollout % can differ inside the same group (e.g. iOS 100%, Android 10%). |
-| **Rollout %** | Share of devices (0–100) that get this update. 100 = everyone, 0 = paused. |
+| **Per-platform release** | iOS and Android are independent. Each platform is always on its **own** latest update. |
 | **Rollback to embedded** | A special update (`kind: "rollback_to_embedded"`) that tells devices to go back to the JS bundle shipped inside the store binary. |
 | **API key** | Secret the CLI uses to publish. Belongs to one app. Shown in full **only once**, when it's created. |
 | **Code signing** | Optional per app. Devices verify updates against a certificate. |
@@ -72,7 +71,7 @@ There are three kinds of people. The API enforces all of this; the UI should **h
 | See all apps | ✅ | only theirs | only theirs |
 | Create app | ✅ | – | – |
 | Manage users (`/users`) | ✅ | – | – |
-| View updates, change rollout, roll back | ✅ | ✅ | ✅ |
+| View updates, roll back | ✅ | ✅ | ✅ |
 | Create API keys / revoke **own** keys | ✅ | ✅ | ✅ |
 | See / revoke **everyone's** API keys | ✅ | ✅ | – |
 | Add / remove members, change roles | ✅ | ✅ | – |
@@ -117,7 +116,6 @@ Layout: left **sidebar** (logo, Apps, Users [admins], list of the user's apps, f
 | Profile page | ✅ done |
 | **Updates tab** | ⚠️ basic table only, one row per platform, no actions |
 | **Update detail** | ❌ to build |
-| **Rollout control** | ❌ to build |
 | **Rollback** | ❌ to build |
 | **Settings tab** | ❌ to build |
 | **Apps list: "latest update" info** | ❌ nice to have |
@@ -146,7 +144,6 @@ interface Update {
   kind: "update" | "rollback_to_embedded"
   message: string
   git_commit: string
-  rollout_percent: number   // 0–100
   created_at: string        // ISO
 }
 ```
@@ -161,10 +158,9 @@ interface Update {
 
 2. **"Live now" card**, one per platform for the selected channel + runtime, **side by side**
    - The newest non-rolled-back update for that (channel, runtime, platform) is what devices get. **The two cards can show different updates**: iOS may be on "New checkout" while Android is still on "Fix back button". That's normal; don't treat it as an error.
-   - Shows: message, short id, git commit (first 7 chars, monospace), published time ("3h ago", exact time in tooltip), rollout % with a progress bar.
+   - Shows: message, short id, git commit (first 7 chars, monospace), published time ("3h ago", exact time in tooltip).
    - If it's a `rollback_to_embedded`: red `Tag` "Rolled back to embedded bundle".
-   - If rollout < 100: note like "40% of devices. The rest stay on the previous update."
-   - Actions: **Change rollout**, **Roll back** (see 6.3, 6.4).
+   - Action: **Roll back** (see 6.4).
 
 3. **History table**, **grouped by `group_id`** (one row per publish, not per platform)
 
@@ -174,9 +170,8 @@ interface Update {
    | Platforms | small tags `iOS` `Android`. Only the platforms in this group (single-platform publishes show one tag) |
    | Channel | text |
    | Runtime | monospace. If the platforms differ, show both (`iOS 1.2.0 · Android 1.1.0`) |
-   | Rollout | `StatusDot`: green 100%, amber 1–99%, gray 0%. If the platforms differ, show one per platform (`iOS 100% · Android 10%`) |
    | Published | relative time, exact in tooltip |
-   | ⋯ | menu: View details, Change rollout, Roll back to this |
+   | ⋯ | menu: View details, Roll back to this |
 
    - Row click → Update detail.
    - A row that is currently live gets a "Live" tag **per platform** (`Live on iOS`). A group can be live on iOS but superseded on Android.
@@ -200,22 +195,13 @@ Built from the same `updates` query (filter by `group_id`), so no new endpoint i
 
 - Header: message, `Live` / `Superseded` / `Rolled back` tag, published time.
 - Metadata list: group id (copy button), channel, runtime version, git commit (copy button), kind.
-- Per-platform section (iOS / Android), **only for the platforms in the group**: update id (copy), runtime version, rollout %, status (`Live` / `Superseded` / `Rolled back`), and a **Change rollout** button scoped to that platform.
-- Group actions: Change rollout (all platforms), Roll back to this update.
+- Per-platform section (iOS / Android), **only for the platforms in the group**: update id (copy), runtime version, status (`Live` / `Superseded` / `Rolled back`).
+- Group action: Roll back to this update.
 - "← Updates" back link that keeps the previous filters.
 
-### 6.3 Change rollout (dialog)
+### 6.3 Change rollout: not in v1
 
-- Opened from the Live card, a history row, or the detail page.
-- **Platform** segmented control: `All platforms · iOS · Android`. Only show the platforms in the group, and hide the control entirely for single-platform groups.
-  - Opened from a Live card or a per-platform section → preselect that platform.
-  - Opened from a history row → preselect `All platforms`.
-  - Show the current value for each platform above the slider (`iOS 100% · Android 10%`).
-- Slider **plus** a number input (0–100), with preset buttons `10% · 25% · 50% · 100%`. When `All platforms` is selected and the current values differ, start the slider at the lowest one and note "This sets both platforms to the same value."
-- Helper text: "Devices are bucketed consistently. A device that got this update keeps getting it as you raise the percentage."
-- `0%` shows a warning: "This pauses the update. Devices that haven't downloaded it stay on the previous one."
-- Submit → `PATCH /api/v1/apps/{slug}/updates/{groupId}` with `{ "rollout_percent": 40, "platform": "android" }`. Leave out `platform` for `All platforms`.
-- On success: toast, invalidate the updates query.
+Percentage rollouts are planned for later. Every update goes to 100% of devices, so there's no rollout column, dialog, or endpoint for now.
 
 ### 6.4 Roll back (dialog)
 
@@ -266,7 +252,7 @@ Each app card/row: name, slug, your role, platform icons, **last published** ("2
 - **Copy buttons** on every id, key, commit, and code snippet (icon button, toast "Copied").
 - **Ids**: show 8 chars in monospace, full value in a tooltip.
 - **Times**: relative (`formatDistanceToNow`), with the exact local time in a tooltip.
-- **Destructive actions** (revoke key, remove member, rollback, disable platform, 0% rollout) always go through a confirm dialog that says exactly what will happen.
+- **Destructive actions** (revoke key, remove member, rollback, disable platform) always go through a confirm dialog that says exactly what will happen.
 - **Buttons** show a spinner and are disabled while their mutation is pending.
 - **Keyboard**: dialogs close with Esc, and forms submit with Enter.
 - **Responsive**: works down to ~768px (sidebar collapses to a sheet; that's already built). Tables scroll horizontally inside their card rather than breaking the layout.
@@ -301,8 +287,7 @@ All routes are under `/api/v1`, use the session cookie, and return JSON. Errors 
 | Method | Path | Body | Notes |
 |---|---|---|---|
 | GET | `/apps/{slug}/updates` | – | → `{ updates: Update[] }` |
-| PATCH | `/apps/{slug}/updates/{groupId}` | `{ rollout_percent, platform?: "ios" \| "android" }` | no `platform` = every platform in the group. Returns `{ group_id, updates }` |
-| POST | `/apps/{slug}/updates/rollback` | `{ channel, runtime_version, platforms: ["ios"] \| ["android"] \| ["ios","android"], to: "previous" \| "embedded", group_id?: string }` | see `ROADMAP.md` M3 §3.2 |
+| POST | `/apps/{slug}/updates/rollback` | `{ channel, runtime_version, platforms: ["ios"] \| ["android"] \| ["ios","android"], to: "previous" \| "embedded", group_id?: string }` | see `ROADMAP.md` M3 §3.1 |
 | POST | `/apps/{slug}/platforms` | `{ platform, bundle_id }` | |
 | PATCH | `/apps/{slug}/platforms/{platform}` | `{ enabled }` | |
 | PUT | `/apps/{slug}/code-signing` | `{ certificate, key_id }` | |
@@ -324,6 +309,7 @@ Until these exist, put mock data in the hook (clearly marked `// TODO: mock unti
 - Dark mode
 - Audit log
 - Multi-org / billing
+- Percentage rollouts (every update goes to all devices for now)
 
 ---
 
@@ -331,9 +317,8 @@ Until these exist, put mock data in the hook (clearly marked `// TODO: mock unti
 
 - [ ] Updates tab: filters (URL-synced), Live cards per platform, grouped history table, all states
 - [ ] Update detail page
-- [ ] Change-rollout dialog wired to the PATCH endpoint, including a per-platform option
 - [ ] Rollback dialog (both modes, per platform) wired to the rollback endpoint
-- [ ] Checked with a **single-platform** group and with a group whose iOS and Android rollouts differ
+- [ ] Checked with a **single-platform** group
 - [ ] Settings tab: platforms, code signing, client-setup snippet; hidden for developers
 - [ ] Every action hidden when the user lacks permission (§3)
 - [ ] Loading / empty / error states on every data view

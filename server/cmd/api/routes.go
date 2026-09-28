@@ -49,7 +49,6 @@ func (app *application) routes() http.Handler {
 	mux.Handle("DELETE /api/v1/apps/{slug}/api-keys/{keyID}", appDeveloper(app.revokeAPIKeyHandler))
 	mux.Handle("GET /api/v1/apps/{slug}/updates", appDeveloper(app.listUpdatesHandler))
 	mux.Handle("POST /api/v1/apps/{slug}/updates/rollback", appDeveloper(app.rollbackHandler))
-	mux.Handle("PATCH /api/v1/apps/{slug}/updates/{groupID}", appDeveloper(app.setRolloutHandler))
 
 	mux.Handle("POST /api/v1/apps/{slug}/members", appAdmin(app.addMemberHandler))
 	mux.Handle("PATCH /api/v1/apps/{slug}/members/{userID}", appAdmin(app.updateMemberHandler))
@@ -64,7 +63,6 @@ func (app *application) routes() http.Handler {
 	mux.Handle("GET /api/v1/updates", cli(app.listUpdatesHandler))
 	mux.Handle("POST /api/v1/updates", cli(app.createUpdateHandler))
 	mux.Handle("POST /api/v1/updates/rollback", cli(app.rollbackHandler))
-	mux.Handle("PATCH /api/v1/updates/{groupID}", cli(app.setRolloutHandler))
 
 	// Dashboard (embedded React app). Least specific pattern, so it only
 	// gets requests no API route matched.

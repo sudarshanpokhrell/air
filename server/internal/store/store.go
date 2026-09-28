@@ -71,7 +71,6 @@ type Store struct {
 		LatestUpdates(ctx context.Context, appID, channel, platform, runtimeVersion string, limit int) ([]*Update, error)
 		ListUpdates(ctx context.Context, appID string, limit int) ([]*Update, error)
 		GetUpdateAssets(ctx context.Context, updateID string) ([]*Asset, error)
-		SetRolloutPercent(ctx context.Context, appID, groupID string, percent int) error
 	}
 }
 
