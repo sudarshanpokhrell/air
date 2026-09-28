@@ -54,6 +54,7 @@ type Store struct {
 		GetAppPlatform(ctx context.Context, appID, platform string) (*AppPlatform, error)
 		CreateApp(ctx context.Context, app *App, creatorID string) error
 		AddPlatform(ctx context.Context, p *AppPlatform) error
+		SetPlatformEnabled(ctx context.Context, appID, platform string, enabled bool) (*AppPlatform, error)
 	}
 	APIKeys interface {
 		CreateAPIKey(ctx context.Context, k *APIKey, keyHash []byte) error

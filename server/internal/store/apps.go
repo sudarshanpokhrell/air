@@ -248,3 +248,29 @@ func (s *AppStore) AddPlatform(ctx context.Context, p *AppPlatform) error {
 	}
 	return err
 }
+
+// SetPlatformEnabled turns OTA updates on or off for one platform.
+// Returns ErrNotFound if the platform isn't registered for the app.
+func (s *AppStore) SetPlatformEnabled(ctx context.Context, appID, platform string, enabled bool) (*AppPlatform, error) {
+	const q = `
+		UPDATE app_platforms
+		SET enabled = $3
+		WHERE app_id = $1 AND platform = $2::platform
+		RETURNING app_id, platform, COALESCE(bundle_id, ''), enabled, created_at`
+
+	var p AppPlatform
+	err := s.db.QueryRowContext(ctx, q, appID, platform, enabled).Scan(
+		&p.AppID,
+		&p.Platform,
+		&p.BundleID,
+		&p.Enabled,
+		&p.CreatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}

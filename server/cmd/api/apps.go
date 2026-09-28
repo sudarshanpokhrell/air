@@ -98,14 +98,76 @@ func (app *application) getAppHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// POST /api/v1/apps/{slug}/platforms  (app admin)
 func (app *application) addPlatformHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: readJSON → validate platform → store.Apps.AddPlatform (ErrConflict → 409) → 201
-	app.notImplementedResponse(w, r)
+	var payload AddPlatformPayload
+	if err := app.readJSON(w, r, &payload); err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	p := &store.AppPlatform{
+		AppID:    app.contextApp(r).ID,
+		Platform: strings.TrimSpace(payload.Platform),
+		BundleID: strings.TrimSpace(payload.BundleID),
+	}
+
+	v := validator.New()
+	v.Check(validator.In(p.Platform, store.PlatformIOS, store.PlatformAndroid), "platform", "must be ios or android")
+	v.Check(len(p.BundleID) <= 255, "bundle_id", "must not be more than 255 bytes long")
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	if err := app.store.Apps.AddPlatform(r.Context(), p); err != nil {
+		switch {
+		case errors.Is(err, store.ErrConflict):
+			app.conflictResponse(w, r, "this platform is already added")
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	if err := app.writeJSON(w, http.StatusCreated, envelope{"platform": p}, nil); err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 // PATCH /api/v1/apps/{slug}/platforms/{platform}  (app admin)
+// enabled: false is the kill switch: devices on that platform stop getting updates.
 func (app *application) updatePlatformHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: enable / disable OTA for one platform
-	app.notImplementedResponse(w, r)
+	platform := r.PathValue("platform")
+	if !validator.In(platform, store.PlatformIOS, store.PlatformAndroid) {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	var payload UpdatePlatformPayload
+	if err := app.readJSON(w, r, &payload); err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	v.Check(payload.Enabled != nil, "enabled", "must be provided")
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	p, err := app.store.Apps.SetPlatformEnabled(r.Context(), app.contextApp(r).ID, platform, *payload.Enabled)
+	if err != nil {
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	if err := app.writeJSON(w, http.StatusOK, envelope{"platform": p}, nil); err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
