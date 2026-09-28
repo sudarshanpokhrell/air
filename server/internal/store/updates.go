@@ -15,20 +15,20 @@ const (
 
 // Update is one row of the updates table: one platform of one publish.
 type Update struct {
-	ID             string
-	GroupID        string
-	AppID          string
-	Channel        string
-	Platform       string
-	RuntimeVersion string
-	Kind           string
-	LaunchAsset    *string // bundle hash; nil for KindRollbackToEmbedded
-	Message        string
-	GitCommit      string
-	Manifest       []byte     // exact bytes from the CLI, served unchanged
-	Signature      string     // expo-signature header value; "" when unsigned
-	RolledBackAt   *time.Time // set by rollback; such rows are never served
-	CreatedAt      time.Time
+	ID             string     `json:"id"`
+	GroupID        string     `json:"group_id"`
+	AppID          string     `json:"-"`
+	Channel        string     `json:"channel"`
+	Platform       string     `json:"platform"`
+	RuntimeVersion string     `json:"runtime_version"`
+	Kind           string     `json:"kind"`
+	LaunchAsset    *string    `json:"-"` // bundle hash; nil for KindRollbackToEmbedded
+	Message        string     `json:"message"`
+	GitCommit      string     `json:"git_commit"`
+	Manifest       []byte     `json:"-"`              // exact bytes from the CLI, served unchanged
+	Signature      string     `json:"-"`              // expo-signature header value; "" when unsigned
+	RolledBackAt   *time.Time `json:"rolled_back_at"` // set by rollback; such rows are never served
+	CreatedAt      time.Time  `json:"created_at"`
 }
 
 // Update is for the new update (for 1 or 2 platform)

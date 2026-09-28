@@ -80,7 +80,19 @@ func (app *application) createAppHandler(w http.ResponseWriter, r *http.Request)
 
 // GET /api/v1/apps/{slug}  (developer+)
 func (app *application) getAppHandler(w http.ResponseWriter, r *http.Request) {
-	env := envelope{"app": app.contextApp(r), "my_role": app.contextAppRole(r)}
+	a := app.contextApp(r)
+
+	// Only whether signing is on and the key id; the certificate stays out.
+	codeSigning := envelope{"enabled": a.CodeSigning != nil, "key_id": ""}
+	if a.CodeSigning != nil {
+		codeSigning["key_id"] = a.CodeSigning.KeyID
+	}
+
+	env := envelope{
+		"app":          a,
+		"my_role":      app.contextAppRole(r),
+		"code_signing": codeSigning,
+	}
 	if err := app.writeJSON(w, http.StatusOK, env, nil); err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

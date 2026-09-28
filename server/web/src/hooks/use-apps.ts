@@ -3,6 +3,7 @@ import type {
   AddMemberInput,
   ApiKey,
   App,
+  AppDetail,
   AppMember,
   AppRole,
   CreateAppInput,
@@ -29,7 +30,7 @@ export const appQuery = (slug: string) =>
   queryOptions({
     queryKey: ["apps", slug],
     queryFn: () =>
-      api.get(`apps/${slug}`).json<{ app: App; my_role: AppRole }>(),
+      api.get(`apps/${slug}`).json<AppDetail>(),
   })
 
 export function useCreateApp() {

@@ -4,7 +4,26 @@ export interface App {
   id: string
   slug: string
   name: string
+  platforms?: AppPlatform[] // only from GET /apps/{slug}
   created_at: string
+}
+
+export interface AppPlatform {
+  platform: "ios" | "android"
+  bundle_id: string
+  enabled: boolean
+  created_at: string
+}
+
+export interface CodeSigningStatus {
+  enabled: boolean
+  key_id: string
+}
+
+export interface AppDetail {
+  app: App
+  my_role: AppRole
+  code_signing: CodeSigningStatus
 }
 
 export interface AppMember {
@@ -32,6 +51,7 @@ export interface Update {
   kind: "update" | "rollback_to_embedded"
   message: string
   git_commit: string
+  rolled_back_at: string | null
   created_at: string
 }
 

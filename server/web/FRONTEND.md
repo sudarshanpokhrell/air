@@ -274,7 +274,7 @@ All routes are under `/api/v1`, use the session cookie, and return JSON. Errors 
 | POST | `/me/password` | – |
 | GET | `/apps` | `{ apps }` |
 | POST | `/apps` `{slug,name}` | `{ app }` (global admin) |
-| GET | `/apps/{slug}` | `{ app, my_role }` |
+| GET | `/apps/{slug}` | `{ app: {…, platforms: [{platform, bundle_id, enabled, created_at}]}, my_role, code_signing: {enabled, key_id} }` |
 | GET / POST | `/apps/{slug}/members` | `{ members }` |
 | PATCH / DELETE | `/apps/{slug}/members/{userId}` | – |
 | GET / POST | `/apps/{slug}/api-keys` | `{ api_keys }` / `{ api_key, key }` |
@@ -294,7 +294,6 @@ All routes are under `/api/v1`, use the session cookie, and return JSON. Errors 
 
 ### Missing (backend needs to add these for the full UI)
 
-- `GET /apps/{slug}` should also return **`platforms`** (`[{platform, bundle_id, enabled}]`) and **`code_signing`** (`{enabled, key_id}`). The Settings tab needs them.
 - `GET /apps` could include `platforms` and `last_published_at` for the apps list (§6.6).
 - Rename app / delete app endpoints (Settings → General).
 

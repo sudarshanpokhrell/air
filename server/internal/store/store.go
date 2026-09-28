@@ -50,6 +50,7 @@ type Store struct {
 		GetApps(ctx context.Context) ([]*App, error)
 		ListAppsForUser(ctx context.Context, userID string) ([]*App, error)
 		GetAppBySlug(ctx context.Context, slug string) (*App, error)
+		ListPlatforms(ctx context.Context, appID string) ([]*AppPlatform, error)
 		GetAppPlatform(ctx context.Context, appID, platform string) (*AppPlatform, error)
 		CreateApp(ctx context.Context, app *App, creatorID string) error
 		AddPlatform(ctx context.Context, p *AppPlatform) error

@@ -13,11 +13,12 @@ const (
 )
 
 type App struct {
-	ID          string       `json:"id"`
-	Slug        string       `json:"slug"`
-	Name        string       `json:"name"`
-	CodeSigning *CodeSigning `json:"-"` // nil when code signing is off
-	CreatedAt   time.Time    `json:"created_at"`
+	ID          string         `json:"id"`
+	Slug        string         `json:"slug"`
+	Name        string         `json:"name"`
+	CodeSigning *CodeSigning   `json:"-"`                   // nil when code signing is off
+	Platforms   []*AppPlatform `json:"platforms,omitempty"` // only loaded by GetAppBySlug
+	CreatedAt   time.Time      `json:"created_at"`
 }
 
 type CodeSigning struct {
@@ -26,11 +27,11 @@ type CodeSigning struct {
 }
 
 type AppPlatform struct {
-	AppID     string
-	Platform  string
-	BundleID  string
-	Enabled   bool
-	CreatedAt time.Time
+	AppID     string    `json:"-"`
+	Platform  string    `json:"platform"`
+	BundleID  string    `json:"bundle_id"`
+	Enabled   bool      `json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type AppStore struct {
@@ -137,7 +138,43 @@ func (s *AppStore) GetAppBySlug(ctx context.Context, slug string) (*App, error) 
 	if cert.Valid {
 		a.CodeSigning = &CodeSigning{Certificate: cert.String, KeyID: keyID}
 	}
+
+	a.Platforms, err = s.ListPlatforms(ctx, a.ID)
+	if err != nil {
+		return nil, err
+	}
 	return &a, nil
+}
+
+func (s *AppStore) ListPlatforms(ctx context.Context, appID string) ([]*AppPlatform, error) {
+	const q = `
+		SELECT app_id, platform, COALESCE(bundle_id, ''), enabled, created_at
+		FROM app_platforms
+		WHERE app_id = $1
+		ORDER BY platform`
+
+	rows, err := s.db.QueryContext(ctx, q, appID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	platforms := []*AppPlatform{}
+	for rows.Next() {
+		var p AppPlatform
+		err := rows.Scan(
+			&p.AppID,
+			&p.Platform,
+			&p.BundleID,
+			&p.Enabled,
+			&p.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		platforms = append(platforms, &p)
+	}
+	return platforms, rows.Err()
 }
 
 func (s *AppStore) GetAppPlatform(ctx context.Context, appID, platform string) (*AppPlatform, error) {
