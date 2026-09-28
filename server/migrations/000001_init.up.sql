@@ -9,7 +9,7 @@ CREATE TABLE apps (
 CREATE TABLE api_keys (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     app_id      UUID NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
-    name        TEXT NOT NULL,                    -- label, e.g. "ci" or "laptop"
+    name        TEXT NOT NULL,                    
     key_hash    BYTEA NOT NULL UNIQUE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     revoked_at  TIMESTAMPTZ

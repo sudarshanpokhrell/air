@@ -21,15 +21,18 @@ type Update struct {
 	Channel        string
 	Platform       string
 	RuntimeVersion string
-	Kind           string  // KindUpdate or KindRollbackToEmbedded
+	Kind           string
 	LaunchAsset    *string // bundle hash; nil for KindRollbackToEmbedded
 	Message        string
 	GitCommit      string
 	RolloutPercent int
+	Manifest       []byte     // exact bytes from the CLI, served unchanged
+	Signature      string     // expo-signature header value; "" when unsigned
+	RolledBackAt   *time.Time // set by rollback; such rows are never served
 	CreatedAt      time.Time
 }
 
-// NewUpdate is the input for one publish (one or more platforms).
+// Update is for the new update (for 1 or 2 platform)
 type NewUpdate struct {
 	AppID          string
 	Channel        string
@@ -40,56 +43,22 @@ type NewUpdate struct {
 	Platforms      []PlatformBuild
 }
 
-// PlatformBuild is what one platform contributes to a publish.
+// every update has a platfrom related info
 type PlatformBuild struct {
+	ID             string
 	Platform       string
 	RuntimeVersion string
 	LaunchAsset    string   // bundle hash; "" for KindRollbackToEmbedded
 	Assets         []string // other asset hashes (images, fonts)
+	Manifest       []byte   // manifest (or directive) JSON exactly as signed
+	Signature      string   // "" when unsigned
 }
 
 type UpdateStore struct {
 	db *sql.DB
 }
 
-const updateColumns = `
-	id, group_id, app_id, channel, platform, runtime_version, kind,
-	launch_asset, COALESCE(message, ''), COALESCE(git_commit, ''),
-	rollout_percent, created_at`
-
-type scanner interface {
-	Scan(dest ...any) error
-}
-
-func scanUpdate(row scanner) (*Update, error) {
-	var u Update
-	err := row.Scan(
-		&u.ID, &u.GroupID, &u.AppID, &u.Channel, &u.Platform, &u.RuntimeVersion, &u.Kind,
-		&u.LaunchAsset, &u.Message, &u.GitCommit,
-		&u.RolloutPercent, &u.CreatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &u, nil
-}
-
-func scanUpdates(rows *sql.Rows) ([]*Update, error) {
-	defer rows.Close()
-	updates := []*Update{}
-	for rows.Next() {
-		u, err := scanUpdate(rows)
-		if err != nil {
-			return nil, err
-		}
-		updates = append(updates, u)
-	}
-	return updates, rows.Err()
-}
-
-// CreateUpdate inserts one row per platform, all sharing one group_id and
-// created_at, plus their update_assets rows. Everything happens in one
-// transaction: if any platform fails, nothing is saved.
+// CreateUpdate inserts one row per platform
 func (s *UpdateStore) CreateUpdate(ctx context.Context, nu NewUpdate) ([]*Update, error) {
 	if len(nu.Platforms) == 0 {
 		return nil, errors.New("no platforms")
@@ -106,13 +75,16 @@ func (s *UpdateStore) CreateUpdate(ctx context.Context, nu NewUpdate) ([]*Update
 	const insertUpdate = `
 		INSERT INTO updates (
 			id, group_id, app_id, channel, platform, runtime_version, kind,
-			launch_asset, message, git_commit, rollout_percent
+			launch_asset, message, git_commit, rollout_percent, manifest, signature
 		)
 		VALUES (
-			gen_random_uuid(), $1, $2, $3, $4::platform, $5, $6::update_kind,
-			NULLIF($7, ''), NULLIF($8, ''), NULLIF($9, ''), $10
+			$1, $2, $3, $4, $5::platform, $6, $7::update_kind,
+			NULLIF($8, ''), NULLIF($9, ''), NULLIF($10, ''), $11, $12, NULLIF($13, '')
 		)
-		RETURNING ` + updateColumns
+		RETURNING
+			id, group_id, app_id, channel, platform, runtime_version, kind,
+			launch_asset, COALESCE(message, ''), COALESCE(git_commit, ''),
+			rollout_percent, manifest, COALESCE(signature, ''), rolled_back_at, created_at`
 
 	const insertAssets = `
 		INSERT INTO update_assets (update_id, asset_hash)
@@ -127,10 +99,18 @@ func (s *UpdateStore) CreateUpdate(ctx context.Context, nu NewUpdate) ([]*Update
 		}
 
 		for _, p := range nu.Platforms {
-			u, err := scanUpdate(tx.QueryRowContext(ctx, insertUpdate,
-				groupID, nu.AppID, nu.Channel, p.Platform, p.RuntimeVersion, kind,
-				p.LaunchAsset, nu.Message, nu.GitCommit, rollout,
-			))
+			var u Update
+			err := tx.QueryRowContext(ctx, insertUpdate,
+				p.ID, groupID, nu.AppID, nu.Channel, p.Platform, p.RuntimeVersion, kind,
+				p.LaunchAsset, nu.Message, nu.GitCommit, rollout, p.Manifest, p.Signature,
+			).Scan(
+				&u.ID, &u.GroupID, &u.AppID, &u.Channel, &u.Platform, &u.RuntimeVersion, &u.Kind,
+				&u.LaunchAsset, &u.Message, &u.GitCommit,
+				&u.RolloutPercent, &u.Manifest, &u.Signature, &u.RolledBackAt, &u.CreatedAt,
+			)
+			if isUniqueViolation(err) {
+				return ErrConflict
+			}
 			if err != nil {
 				return fmt.Errorf("insert %s update: %w", p.Platform, err)
 			}
@@ -140,7 +120,7 @@ func (s *UpdateStore) CreateUpdate(ctx context.Context, nu NewUpdate) ([]*Update
 					return fmt.Errorf("insert %s assets: %w", p.Platform, err)
 				}
 			}
-			created = append(created, u)
+			created = append(created, &u)
 		}
 		return nil
 	})
@@ -152,11 +132,16 @@ func (s *UpdateStore) CreateUpdate(ctx context.Context, nu NewUpdate) ([]*Update
 
 // LatestUpdates returns the newest updates a device could receive, newest first.
 // More than one is returned so rollouts can fall back to an older update.
+// Rolled-back updates are skipped.
 func (s *UpdateStore) LatestUpdates(ctx context.Context, appID, channel, platform, runtimeVersion string, limit int) ([]*Update, error) {
-	q := `
-		SELECT ` + updateColumns + `
+	const q = `
+		SELECT
+			id, group_id, app_id, channel, platform, runtime_version, kind,
+			launch_asset, COALESCE(message, ''), COALESCE(git_commit, ''),
+			rollout_percent, manifest, COALESCE(signature, ''), rolled_back_at, created_at
 		FROM updates
 		WHERE app_id = $1 AND channel = $2 AND platform = $3::platform AND runtime_version = $4
+		  AND rolled_back_at IS NULL
 		ORDER BY created_at DESC
 		LIMIT $5`
 
@@ -164,13 +149,31 @@ func (s *UpdateStore) LatestUpdates(ctx context.Context, appID, channel, platfor
 	if err != nil {
 		return nil, err
 	}
-	return scanUpdates(rows)
+	defer rows.Close()
+
+	updates := []*Update{}
+	for rows.Next() {
+		var u Update
+		err := rows.Scan(
+			&u.ID, &u.GroupID, &u.AppID, &u.Channel, &u.Platform, &u.RuntimeVersion, &u.Kind,
+			&u.LaunchAsset, &u.Message, &u.GitCommit,
+			&u.RolloutPercent, &u.Manifest, &u.Signature, &u.RolledBackAt, &u.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		updates = append(updates, &u)
+	}
+	return updates, rows.Err()
 }
 
 // ListUpdates returns an app's update history, newest first.
 func (s *UpdateStore) ListUpdates(ctx context.Context, appID string, limit int) ([]*Update, error) {
-	q := `
-		SELECT ` + updateColumns + `
+	const q = `
+		SELECT
+			id, group_id, app_id, channel, platform, runtime_version, kind,
+			launch_asset, COALESCE(message, ''), COALESCE(git_commit, ''),
+			rollout_percent, manifest, COALESCE(signature, ''), rolled_back_at, created_at
 		FROM updates
 		WHERE app_id = $1
 		ORDER BY created_at DESC, platform
@@ -180,7 +183,22 @@ func (s *UpdateStore) ListUpdates(ctx context.Context, appID string, limit int) 
 	if err != nil {
 		return nil, err
 	}
-	return scanUpdates(rows)
+	defer rows.Close()
+
+	updates := []*Update{}
+	for rows.Next() {
+		var u Update
+		err := rows.Scan(
+			&u.ID, &u.GroupID, &u.AppID, &u.Channel, &u.Platform, &u.RuntimeVersion, &u.Kind,
+			&u.LaunchAsset, &u.Message, &u.GitCommit,
+			&u.RolloutPercent, &u.Manifest, &u.Signature, &u.RolledBackAt, &u.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		updates = append(updates, &u)
+	}
+	return updates, rows.Err()
 }
 
 // GetUpdateAssets returns the assets of an update (not including the launch asset).

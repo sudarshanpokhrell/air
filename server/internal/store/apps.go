@@ -13,10 +13,16 @@ const (
 )
 
 type App struct {
-	ID        string    `json:"id"`
-	Slug      string    `json:"slug"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          string       `json:"id"`
+	Slug        string       `json:"slug"`
+	Name        string       `json:"name"`
+	CodeSigning *CodeSigning `json:"-"` // nil when code signing is off
+	CreatedAt   time.Time    `json:"created_at"`
+}
+
+type CodeSigning struct {
+	Certificate string // certificate.pem, the same one built into the app
+	KeyID       string // codeSigningMetadata.keyid in app.json, usually "main"
 }
 
 type AppPlatform struct {
@@ -33,7 +39,7 @@ type AppStore struct {
 
 func (s *AppStore) GetApps(ctx context.Context) ([]*App, error) {
 	const q = `
-		SELECT id, slug, name, created_at
+		SELECT id, slug, name, signing_certificate, COALESCE(signing_key_id, ''), created_at
 		FROM apps
 		ORDER BY created_at`
 
@@ -46,14 +52,21 @@ func (s *AppStore) GetApps(ctx context.Context) ([]*App, error) {
 	apps := []*App{}
 	for rows.Next() {
 		var a App
+		var cert sql.NullString
+		var keyID string
 		err := rows.Scan(
 			&a.ID,
 			&a.Slug,
 			&a.Name,
+			&cert,
+			&keyID,
 			&a.CreatedAt,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if cert.Valid {
+			a.CodeSigning = &CodeSigning{Certificate: cert.String, KeyID: keyID}
 		}
 		apps = append(apps, &a)
 	}
@@ -62,7 +75,7 @@ func (s *AppStore) GetApps(ctx context.Context) ([]*App, error) {
 
 func (s *AppStore) ListAppsForUser(ctx context.Context, userID string) ([]*App, error) {
 	const q = `
-		SELECT a.id, a.slug, a.name, a.created_at
+		SELECT a.id, a.slug, a.name, a.signing_certificate, COALESCE(a.signing_key_id, ''), a.created_at
 		FROM apps a
 		JOIN app_members m ON m.app_id = a.id
 		WHERE m.user_id = $1
@@ -77,14 +90,21 @@ func (s *AppStore) ListAppsForUser(ctx context.Context, userID string) ([]*App, 
 	apps := []*App{}
 	for rows.Next() {
 		var a App
+		var cert sql.NullString
+		var keyID string
 		err := rows.Scan(
 			&a.ID,
 			&a.Slug,
 			&a.Name,
+			&cert,
+			&keyID,
 			&a.CreatedAt,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if cert.Valid {
+			a.CodeSigning = &CodeSigning{Certificate: cert.String, KeyID: keyID}
 		}
 		apps = append(apps, &a)
 	}
@@ -93,15 +113,19 @@ func (s *AppStore) ListAppsForUser(ctx context.Context, userID string) ([]*App, 
 
 func (s *AppStore) GetAppBySlug(ctx context.Context, slug string) (*App, error) {
 	const q = `
-		SELECT id, slug, name, created_at
+		SELECT id, slug, name, signing_certificate, COALESCE(signing_key_id, ''), created_at
 		FROM apps
 		WHERE slug = $1`
 
 	var a App
+	var cert sql.NullString
+	var keyID string
 	err := s.db.QueryRowContext(ctx, q, slug).Scan(
 		&a.ID,
 		&a.Slug,
 		&a.Name,
+		&cert,
+		&keyID,
 		&a.CreatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -109,6 +133,9 @@ func (s *AppStore) GetAppBySlug(ctx context.Context, slug string) (*App, error) 
 	}
 	if err != nil {
 		return nil, err
+	}
+	if cert.Valid {
+		a.CodeSigning = &CodeSigning{Certificate: cert.String, KeyID: keyID}
 	}
 	return &a, nil
 }

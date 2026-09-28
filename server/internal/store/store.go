@@ -13,6 +13,10 @@ var (
 	ErrConflict = errors.New("already exists")
 )
 
+type scanner interface {
+	Scan(dest ...any) error
+}
+
 // isUniqueViolation reports whether err is a Postgres unique constraint error.
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
