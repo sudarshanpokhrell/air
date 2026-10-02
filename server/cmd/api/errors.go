@@ -43,6 +43,10 @@ func (app *application) invalidLoginResponse(w http.ResponseWriter, r *http.Requ
 	app.errorResponse(w, r, http.StatusUnauthorized, "invalid email or password")
 }
 
+func (app *application) payloadTooLargeResponse(w http.ResponseWriter, r *http.Request) {
+	app.errorResponse(w, r, http.StatusRequestEntityTooLarge, "the request body is too large")
+}
+
 func (app *application) notImplementedResponse(w http.ResponseWriter, r *http.Request) {
 	app.errorResponse(w, r, http.StatusNotImplemented, "not implemented yet")
 }

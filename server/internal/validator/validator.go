@@ -6,7 +6,8 @@ var (
 	EmailRX = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
 	UUIDRX  = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 	SlugRX  = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,62}$`)
-	HashRX  = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`) // base64url sha256, no padding
+	HashRX  = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)   // base64url sha256, no padding
+	ExtRX   = regexp.MustCompile(`^\.[A-Za-z0-9]{1,16}$`) // ".png", ".hbc"
 )
 
 type Validator struct {

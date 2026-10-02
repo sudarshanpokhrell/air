@@ -7,22 +7,19 @@ import (
 	"time"
 )
 
-// Asset is one stored file, identified by the hash of its content.
 type Asset struct {
-	Hash        string
-	Key         string
-	ContentType string
-	FileExt     string
-	SizeBytes   int64
-	CreatedAt   time.Time
+	Hash        string    `json:"hash"`
+	Key         string    `json:"key"`
+	ContentType string    `json:"content_type"`
+	FileExt     string    `json:"file_ext"`
+	SizeBytes   int64     `json:"size_bytes"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type AssetStore struct {
 	db *sql.DB
 }
 
-// InsertAsset records a file that was stored. Inserting the same hash twice
-// is not an error: the same hash always means the same bytes.
 func (s *AssetStore) InsertAsset(ctx context.Context, a *Asset) error {
 	const q = `
 		INSERT INTO assets (hash, key, content_type, file_ext, size_bytes)
@@ -51,8 +48,6 @@ func (s *AssetStore) GetAsset(ctx context.Context, hash string) (*Asset, error) 
 	return &a, nil
 }
 
-// MissingAssets returns the hashes (in input order, without duplicates)
-// that are not stored yet. The CLI uploads only these.
 func (s *AssetStore) MissingAssets(ctx context.Context, hashes []string) ([]string, error) {
 	if len(hashes) == 0 {
 		return []string{}, nil

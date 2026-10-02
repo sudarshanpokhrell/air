@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	// Assets are stored under their hash, so a key's content never changes.
 	keyPrefix    = "assets/"
 	cacheControl = "public, max-age=31536000, immutable"
 )
@@ -27,7 +26,6 @@ type S3Config struct {
 	AssetBaseURL    string // public URL of the assets/ prefix, e.g. https://cdn.example.com/assets
 }
 
-// S3 stores assets in an S3-compatible bucket (Cloudflare R2).
 type S3 struct {
 	client       *s3.Client
 	bucket       string
@@ -35,14 +33,19 @@ type S3 struct {
 }
 
 func NewS3(cfg S3Config) (*S3, error) {
-	switch {
-	case cfg.Endpoint == "":
+
+	if cfg.Endpoint == "" {
 		return nil, errors.New("storage: endpoint is required")
-	case cfg.Bucket == "":
+	}
+
+	if cfg.Bucket == "" {
 		return nil, errors.New("storage: bucket is required")
-	case cfg.AccessKeyID == "" || cfg.SecretAccessKey == "":
+	}
+
+	if cfg.AccessKeyID == "" || cfg.SecretAccessKey == "" {
 		return nil, errors.New("storage: access key id and secret access key are required")
-	case cfg.AssetBaseURL == "":
+	}
+	if cfg.AssetBaseURL == "" {
 		return nil, errors.New("storage: asset base url is required")
 	}
 
@@ -52,11 +55,10 @@ func NewS3(cfg S3Config) (*S3, error) {
 	}
 
 	client := s3.New(s3.Options{
-		Region:       region,
-		BaseEndpoint: aws.String(cfg.Endpoint),
-		Credentials:  credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
-		UsePathStyle: true,
-		// R2 rejects the SDK's default CRC32 checksums.
+		Region:                     region,
+		BaseEndpoint:               aws.String(cfg.Endpoint),
+		Credentials:                credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
+		UsePathStyle:               true,
 		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
 		ResponseChecksumValidation: aws.ResponseChecksumValidationWhenRequired,
 	})
