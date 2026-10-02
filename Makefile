@@ -1,4 +1,7 @@
-.PHONY: up down docker-up docker-down docker-logs docker-admin run migrate-up migrate-down migration create-admin reset-password web-install web-dev web-build
+.PHONY: dev up down docker-up docker-down docker-logs docker-admin run migrate-up migrate-down migration create-admin reset-password web-install web-dev web-build
+
+# One command for local development: Postgres + migrations + API on :8080.
+dev: up migrate-up run
 
 up:
 	docker compose up -d --wait
@@ -14,11 +17,11 @@ docker-down:
 	docker compose --profile app down
 
 docker-logs:
-	docker compose --profile app logs -f api migrate
+	docker compose --profile app logs -f api
 
 # Usage: make docker-admin email=you@example.com name="Your Name"
 docker-admin:
-	docker compose --profile app run --rm --entrypoint /app/admin api create-admin --email "$(email)" --name "$(name)"
+	docker compose --profile app exec api admin create-admin --email "$(email)" --name "$(name)"
 
 run:
 	cd server && go run ./cmd/api

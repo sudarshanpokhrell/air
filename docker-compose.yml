@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ota}
       POSTGRES_DB: ota
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -14,35 +14,18 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-
-  # The services below only start with `--profile app` (`make docker-up`),
-  # so `make up` still starts just Postgres for local development.
-
-  # Applies pending migrations, then exits. The API waits for it.
-  migrate:
-    profiles: [app]
-    build: ./server
-    image: air-server
-    entrypoint: ["/app/migrate", "up"]
-    environment: &server-env
-      PORT: "8080"
-      ENV: ${AIR_ENV:-production}
-      DATABASE_URL: postgres://ota:${POSTGRES_PASSWORD:-ota}@postgres:5432/ota?sslmode=disable
-      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   api:
     profiles: [app]
-    build: ./server
+    build: .
     image: air-server
-    environment: *server-env
+    environment:
+      DATABASE_URL: postgres://ota:${POSTGRES_PASSWORD:-ota}@postgres:5432/ota?sslmode=disable
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
     ports:
       - "${AIR_PORT:-8080}:8080"
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

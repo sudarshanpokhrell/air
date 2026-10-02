@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+example-app
+node_modules
+server/.env
+server/.env.*
+server/bin
+server/tmp
+server/web/node_modules
+server/web/dist
+*.md

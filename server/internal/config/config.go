@@ -15,35 +15,33 @@ type Config struct {
 	PublicURL string
 }
 
+// Defaults match the Postgres started by `make up`, so the server runs
+// locally without a .env file.
+const (
+	defaultPort  = "8080"
+	defaultEnv   = "development"
+	defaultDBUrl = "postgres://ota:ota@localhost:5433/ota?sslmode=disable"
+)
+
 func MustLoad() Config {
 	godotenv.Load()
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		panic("PORT is required.")
-	}
+	port := getenv("PORT", defaultPort)
 
-	env := os.Getenv("ENV")
-	if env == "" {
-		panic("ENV is required.")
-
-	}
-
-	dbUrl := os.Getenv("DATABASE_URL")
-	if dbUrl == "" {
-		panic("DATABASE_URL is required.")
-
-	}
 	cfg := Config{
 		Port:  port,
-		Env:   env,
-		DBUrl: dbUrl,
+		Env:   getenv("ENV", defaultEnv),
+		DBUrl: getenv("DATABASE_URL", defaultDBUrl),
 
-		PublicURL: os.Getenv("PUBLIC_URL"),
-	}
-	if cfg.PublicURL == "" {
-		cfg.PublicURL = "http://localhost:" + port
+		PublicURL: getenv("PUBLIC_URL", "http://localhost:"+port),
 	}
 
 	return cfg
+}
+
+func getenv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
