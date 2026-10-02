@@ -1,4 +1,4 @@
-// Package storage stores asset files: R2 in production, local disk in development.
+// Package storage stores asset files in an S3-compatible bucket (Cloudflare R2).
 package storage
 
 import (
@@ -12,5 +12,3 @@ type Storage interface {
 	// PublicURL is where devices download the asset from.
 	PublicURL(hash string) string
 }
-
-//TODO: Implelment s3 compatible storage

@@ -21,6 +21,12 @@ services:
     environment:
       DATABASE_URL: postgres://ota:${POSTGRES_PASSWORD:-ota}@postgres:5432/ota?sslmode=disable
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      ASSET_BASE_URL: ${ASSET_BASE_URL}
     ports:
       - "${AIR_PORT:-8080}:8080"
     depends_on:

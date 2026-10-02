@@ -5,6 +5,7 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
+	"github.com/sudarshanpokhrell/air/internal/storage"
 )
 
 type Config struct {
@@ -13,10 +14,10 @@ type Config struct {
 	DBUrl string
 
 	PublicURL string
+
+	Storage storage.S3Config
 }
 
-// Defaults match the Postgres started by `make up`, so the server runs
-// locally without a .env file.
 const (
 	defaultPort  = "8080"
 	defaultEnv   = "development"
@@ -34,6 +35,15 @@ func MustLoad() Config {
 		DBUrl: getenv("DATABASE_URL", defaultDBUrl),
 
 		PublicURL: getenv("PUBLIC_URL", "http://localhost:"+port),
+
+		Storage: storage.S3Config{
+			Endpoint:        os.Getenv("S3_ENDPOINT"),
+			Region:          getenv("S3_REGION", "auto"),
+			Bucket:          os.Getenv("S3_BUCKET"),
+			AccessKeyID:     os.Getenv("S3_ACCESS_KEY_ID"),
+			SecretAccessKey: os.Getenv("S3_SECRET_ACCESS_KEY"),
+			AssetBaseURL:    os.Getenv("ASSET_BASE_URL"),
+		},
 	}
 
 	return cfg

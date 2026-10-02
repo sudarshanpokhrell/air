@@ -31,11 +31,17 @@ func main() {
 	defer database.Close()
 	logger.Info("database connection pool established")
 
+	assets, err := storage.NewS3(cfg.Storage)
+	if err != nil {
+		logger.Error("failed to set up asset storage", "err", err)
+		os.Exit(1)
+	}
+
 	app := &application{
-		config: cfg,
-		logger: logger,
-		store:  store.NewStore(database),
-		// storage: TODO storage.NewDisk(...) / storage.NewR2(...)
+		config:  cfg,
+		logger:  logger,
+		store:   store.NewStore(database),
+		storage: assets,
 	}
 
 	if err := app.serve(); err != nil {
